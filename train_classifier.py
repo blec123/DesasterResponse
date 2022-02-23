@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 from sqlalchemy import create_engine
 import re
+import sys
 import nltk
 from nltk.corpus import stopwords
 from nltk.stem.wordnet import WordNetLemmatizer
@@ -48,7 +49,7 @@ class Classifier():
         engine = create_engine('sqlite:///EmergencyResponse.db')
         self.df = pd.read_sql('SELECT * FROM desaster_response_table_no_2', engine)
         
-        return df.columns
+        return self.df.columns
 
         
     def prepare_data(self, input_columns, output_columns, test_part = 0.25, random_state = 123):
@@ -69,8 +70,8 @@ class Classifier():
     
         """
         
-        self.X = df[input_columns]
-        self.Y = df[output_columns]
+        self.X = self.df[input_columns]
+        self.Y = self.df[output_columns]
         
         self.X_train, self.X_test, self.Y_train, self.Y_test = train_test_split(self.X, self.Y, test_size=test_part, random_state=135)
         
@@ -114,15 +115,15 @@ class Classifier():
             # Remove potential urls
             if replace_urls:
                 url_regex = 'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
-                detected_urls = re.findall(url_regex, text)
+                detected_urls = re.findall(url_regex, message)
                 for url in detected_urls:
-                    text = text.replace(url, "urlplaceholder")
+                    message = message.replace(url, "urlplaceholder")
             
             # Normalize case and remove punctuation and double blanks
-            text = re.sub(r"[^a-zA-Z0-9]", " ",text.lower()).strip()
+            message = re.sub(r"[^a-zA-Z0-9]", " ",message.lower()).strip()
             
             # Tokenize text
-            tokens = word_tokenize(text)
+            tokens = word_tokenize(message)
             
             # stemming
             if use_stemming:
@@ -131,7 +132,7 @@ class Classifier():
             # lemmatize
             if lem_pos:
                 wordnetlemmatizer = WordNetLemmatizer()
-                for pos in lem_pos
+                for pos in lem_pos:
                     tokens = [wordnetlemmatizer.lemmatize(t, pos=pos) for t in tokens]
             
             # Remove stop words
@@ -202,5 +203,5 @@ def main(db, save_path):
     
 if __name__ == '__main__':
     arg1 = sys.argv[1]
-    arg2 = ys.argv[2]
-    main(arg1, arg2, arg3)
+    arg2 = sys.argv[2]
+    main(arg1, arg2)

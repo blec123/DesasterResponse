@@ -52,7 +52,7 @@ class DataPrepare ():
         
     
     
-    def load_data(input_path, output_path):
+    def load_data(self, input_path, output_path):
         """
         Loads input and output data from csv files and saves them in calss variables
     
@@ -110,7 +110,7 @@ class DataPrepare ():
         
         # if requested, drop all rows where any output value is greater 1, due to false data
         if (drop_greater_one):
-            self.merged_data = self.merged_data[(self.merged_data[category_colnames] <= 1).all(axis=1)]
+            self.merged_data = self.merged_data[(self.merged_data[output_colnames] <= 1).all(axis=1)]
             
         
     
@@ -165,7 +165,7 @@ class DataPrepare ():
         engine = create_engine(db)
         
         # write to database
-        df.to_sql(table_name, engine, index=False)
+        self.merged_data.to_sql(table_name, engine, index=False)
         
         
 
@@ -193,6 +193,6 @@ def main(input_data, output_data, db_name):
     
 if __name__ == '__main__':
     arg1 = sys.argv[1]
-    arg2 = ys.argv[2]
-    arg3 = ys.argv[3]
+    arg2 = sys.argv[2]
+    arg3 = sys.argv[3]
     main(arg1, arg2, arg3)
