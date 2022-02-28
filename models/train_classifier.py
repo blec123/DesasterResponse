@@ -23,7 +23,9 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.neural_network import MLPClassifier
+from sklearn.externals import joblib
 import sqlite3
+import pickle
 from word2Vec import KerasWord2VecVectorizer
 
 # download needed nltk packages
@@ -155,28 +157,32 @@ class Classifier():
             ('tfidf', TfidfTransformer()),
             ('rfclf', RandomForestClassifier())
             ])
+            
+        self.grid_search_parameters = {
+            'rfclf__criterion': ['gini', 'entropy']
+        }
+        
         
         
         
     def _w2v_mlp(self):
         """
-        Sets self.pipeline to CountVectorizer + TfidfTransformer + RandomForestClassifier
+        Sets self.pipeline to Word2Vec + Dense NN
+        Distinguishes between sole pipeline and Gridsearch
 
         """
 
         self.pipeline = Pipeline([
-            ('w2v', KerasWord2VecVectorizer(batch_size=128)),
+            ('w2v', KerasWord2VecVectorizer(epochs = 2500, batch_size=128, embed_size=270)),
             ('mlpcl', MLPClassifier(early_stopping=True))
             ])
             
         self.grid_search_parameters = {
-            'w2v__embed_size': [270, 1350],       # 20 and 100
             'w2v__window_size': [3, 5],
-            'w2v__epochs': [500, 1500],
             'mlpcl__hidden_layer_sizes': [(200), (400), (200, 200)],
             'mlpcl__activation': ['relu', 'tanh'],
         }
-    
+        
 
     def train(self, pipeline='cv_tf_idf_rf', grid_search=False):
         
@@ -207,7 +213,7 @@ class Classifier():
         else: 
             self.pipeline.fit(self.X_train['message'], self.Y_train)
 
-    def test(self, metrics=''):
+    def test(self):
         
         """
         Evalute model.
@@ -220,7 +226,6 @@ class Classifier():
         ----------
         evaluation: evaluation
         """
-        
         # predict values
         Y_pred = []
         if self.gs:
@@ -229,24 +234,46 @@ class Classifier():
             Y_pred = self.pipeline.predict(self.X_test['message'])
         
         # get f1 score per category
-        f1s = []
+        self.f1s = []
         for i, value in  enumerate(self.Y_test.columns):
             f1 = f1_score(list(self.Y_test[value].values), list(Y_pred[:, i]))
-            f1s.append(f1)
+            self.f1s.append(f1)
 
-        return f1s
+        return self.f1s
+    
+    
+    def export_model(self, filename):
         
+        """
+        Exports model to pickle file
         
+        Arguments:
+        ----------
+        filename: filename of exported pickle file
+    
+        Returns:
+        ----------
+        None
+        """
         
+        with open(filename, 'wb') as pf:
+            if self.gs:
+                pickle.dump(self.cv, pf)
+            else:
+                pickle.dump(self.pipeline, pf)
+        with open(filename.split('.')[0] +'_scores.pkl', 'wb') as pf:
+            pickle.dump(list(self.f1s), pf)
+        
+        print('model successfully saved to %s'%filename)
         
         
         
 def main(db_file_name, save_path):
     
     # set table name input columns
-    table_name = 'er_table'
+    table_name = 'emergency_table'
     input_columns = ['message', 'genre']
-    pipeline_to_use = 'w2v_mlp' # options are [cv_tf_idf_rf, w2v_mlp]
+    pipeline_to_use = 'cv_tf_idf_rf' # options are [cv_tf_idf_rf, w2v_mlp]
     
     # init Classifier, load data and get outpul columns
     Emegency_classifier = Classifier()
@@ -256,7 +283,7 @@ def main(db_file_name, save_path):
     # prepare and tokenize data
     Emegency_classifier.prepare_data(input_columns, output_columns)
     Emegency_classifier.tokenize(replace_urls=True, remove_stopwords = True, use_stemming=False,  lem_pos = ['n', 'v', 'a', 'r', 's'])
-    
+   
     # split data into training and testing
     test_part, random_state = Emegency_classifier.split_data()
     print('Data was split with random state %i and %i%% as testing data'%(random_state, test_part*100))
@@ -267,6 +294,9 @@ def main(db_file_name, save_path):
     # test
     metrics = Emegency_classifier.test()
     print(metrics)
+    
+    # export model to pickle
+    Emegency_classifier.export_model(save_path)
     
     
 if __name__ == '__main__':
