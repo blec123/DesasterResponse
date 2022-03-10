@@ -199,7 +199,7 @@ class DataPrepare ():
         connection = sqlite3.connect(file_name)
         
         # write to database
-        self.merged_data.to_sql(table_name, connection, index=False)
+        self.merged_data.to_sql(table_name, connection, index=False, if_exists='replace')
         connection.close()
         
         
